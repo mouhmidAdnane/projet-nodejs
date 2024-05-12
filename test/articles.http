@@ -1,0 +1,9 @@
+GET http://localhost:3000/articles/10/20
+###
+GET  http://localhost:3000/articles/120
+###
+POST  http://localhost:3000/articles
+###
+PATCH  http://localhost:3000/articles
+###
+DELETE  http://localhost:3000/articles/120
