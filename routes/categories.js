@@ -1,8 +1,9 @@
 const express= require("express")
 router= express.Router()
 
-router.get("/:take/:skip", (req,res)=>{
+router.get("/:take/:skip", async(req,res)=>{
     res.send(`get ${req.params.take} categories starting from ${req.params.skip}  `)
+   
 })
 router.get("/:id", (req,res)=>{
     res.send(`categorie ${req.params.id}`)
