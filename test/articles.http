@@ -1,9 +1,17 @@
-GET http://localhost:3000/articles/10/20
+GET http://localhost:3000/articles/100/0
 ###
 GET  http://localhost:3000/articles/120
 ###
-POST  http://localhost:3000/articles
+POST http://localhost:3000/articles
+Content-Type: application/json
+
+{
+    "titre": "Your Article Title",
+    "contenu": "Your article content goes here",
+    "userId": 1,
+    "published": true
+}
 ###
 PATCH  http://localhost:3000/articles
 ###
-DELETE  http://localhost:3000/articles/120
+DELETE  http://localhost:3000/articles/108
