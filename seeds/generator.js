@@ -73,7 +73,7 @@ const generateArticle= (users, categories)=>{
         titre: faker.lorem.words(),
         contenu: faker.lorem.paragraph(),
         image: null,
-        published: false,
+        published: true,
         userId: users[authorIndex].id,
         categories: {
             connect:articleCategories

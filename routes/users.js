@@ -13,6 +13,8 @@ router.get("/:take/:skip", async(req,res)=>{
             take: take,
             skip: skip,
         });
+        if(!utilisateurs)
+          return res.status(404).json({error: "utilisateur not found"})
         res.status(200).json(utilisateurs);
     } catch (error) {
         console.error("Error fetching items:", error.message);
@@ -45,6 +47,7 @@ router.post("/", async (req,res)=>{
 
   if(!email || !nom || !password || !role)
     return res.status(400).json({error: "invalid data"})
+
   const userExists = await prisma.utilisateur.findUnique({
     where: { email:  email},
     select: { email: true },
@@ -85,20 +88,27 @@ router.patch("/", async (req,res)=>{
   if (!userId || isNaN(userId)) 
     return res.status(400).json({error: "invalid id"});
 
-  const userExists = await prisma.utilisateur.findUnique({
-    where: { id: userId },
-    select: { id: true },
+  const userExists = await prisma.utilisateur.count({
+    where: { id: userId }
   })
 
-  if(!userExists)
+  if(userExists === 0)
     return res.status(400).json({error: "user not found"});
+
+  if(data.email){
+    const userExists = await prisma.utilisateur.count({
+      where: { email: data.email }
+    })
+    if(userExists !== 0)
+      return res.status(400).send("this email has already been chosen");
+  }
+
 
   if(!["AUTHOR", "ADMIN"].includes(data.role))
     return res.status(400).json({error: "invalid role"});
 
-  const user= await prisma.utilisateur.findUnique({
-    where: { email: data.email },
-    select: { id: true}
+  const user= await prisma.utilisateur.count({
+    where: { email: data.email }
   })
 
   if(user)
@@ -125,6 +135,8 @@ try {
   }
   
 })
+
+
 router.delete("/:id", async (req, res) => {
   const userId = req.params.id;
 

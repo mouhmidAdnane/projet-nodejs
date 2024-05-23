@@ -8,7 +8,7 @@ router.get("/:take/:skip", async(req,res)=>{
     const take = parseInt(req.params.take); 
     const skip = parseInt(req.params.skip); 
 
-    try {
+    try{
         const categories = await prisma.categorie.findMany({
             take: take,
             skip: skip,
@@ -19,11 +19,12 @@ router.get("/:take/:skip", async(req,res)=>{
         res.status(500).json({ error: "Internal server error" });
     }
 })
+
+
 router.get("/:id", async (req,res)=>{
   const id= req.params.id
-  if(!id || isNaN(id) )
-    return res.status(400).json({error: "invalid id"})
-  
+  if (!id)          return res.status(400).json({ error: "Missing id" });
+  if (isNaN(id))    return res.status(400).json({ error: "invalid id" });
   
   try{
     const categorie = await prisma.categorie.findUnique({
@@ -47,11 +48,7 @@ router.post("/", async (req,res)=>{
     return res.status(400).json({error: "invalid data"})
 
   try{
-    const categorieCreated= await prisma.categorie.create({data: {
-        nom: nom
-    }})
-    if(!categorieCreated)
-      return res.status(500).json({error: "Internal server error"})
+    const categorieCreated= await prisma.categorie.create({data: {nom: nom}})
     return res.status(200).json({message: "category created successfully",categorie: categorieCreated})
 
   }catch(error){
@@ -63,16 +60,24 @@ router.post("/", async (req,res)=>{
 
 router.patch("/", async (req,res)=>{
   const nom= req.body.nom
-  const categorieId= parseInt(req.body.id)
+  const categorieId= req.body.id
+
+  console.log(req.body)
 
 
-  if (!categorieId || isNaN(categorieId)) 
-    return res.status(400).json({error: "invalid id"});
+  if (!categorieId) return res.status(400).json({ error: "Missing id" });
+  if (isNaN(categorieId)) return res.status(400).json({ error: "Invalid id" });
+
+  const categorieExists = await prisma.categorie.count({
+    where: { id: parseInt(categorieId) }
+  })
+  
+  if(categorieExists === 0)
+    return res.status(400).json({error: "category not found"});
 
 try {
-    
     const categorieUpdated= await prisma.categorie.update({
-      where: { id: categorieId },
+      where: { id: parseInt(categorieId) },
       data: {nom: nom}
     });
     res.status(200).json({message:"category updated successfully", categorie: categorieUpdated});
@@ -89,6 +94,12 @@ router.delete("/:id", async (req, res) => {
     return res.status(400).json({ error: "invalid id" });
   }
 
+  const categoryExists = await prisma.categorie.count({ where: {
+    id: categorieId
+  } });
+
+  if (categoryExists === 0) 
+    return res.status(400).json({ error: "category not found" });
   try {
       await prisma.categorie.delete({
         where: { id: parseInt(categorieId) }

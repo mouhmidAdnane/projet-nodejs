@@ -14,6 +14,10 @@ router.get("/:take/:skip", async(req,res)=>{
             take: take,
             skip: skip,
         });
+
+        if(!commentaires)
+          return res.status(404).json({error: "commentaire not found"})
+
         return res.status(200).json(commentaires);
     } catch (error) {
         console.error("Error fetching items:", error.message);
@@ -24,7 +28,6 @@ router.get("/:id", async (req,res)=>{
   const id= req.params.id
   if(!id || isNaN(id) )
     return res.status(400).json({error: "invalid id"})
-  
   
   try{
     const commentaire = await prisma.commentaire.findUnique({
@@ -53,8 +56,14 @@ router.post("/", async (req,res)=>{
       where: { email: email },
       select: { id: true },
   })
+  articleExists = await prisma.article.count({
+      where: { id: parseInt(articleId) }
+  })
   if(!userExists)
     return res.status(400).json({error: "user not found"})
+
+  if(!articleExists)
+    return res.status(400).json({error: "article not found"})
 
   try{
     const comment= {
@@ -63,8 +72,7 @@ router.post("/", async (req,res)=>{
         articleId: articleId
     }
     const commentaireCreated= await prisma.commentaire.create({data: comment})
-    if(!commentaireCreated)
-      return res.status(500).json({error: "Internal server error"})
+
     return res.status(200).json({message: "commentaire created successfully",commentaire: commentaireCreated})
 
   }catch(error){
@@ -77,13 +85,18 @@ router.post("/", async (req,res)=>{
 router.patch("/", async (req,res)=>{
   const data= req.body.contenu
   const commentaireId= parseInt(req.body.id)
-  if (!commentaireId || isNaN(commentaireId)) 
-    return res.status(400).json({error: "invalid id"});
+  if (!commentaireId) 
+    return res.status(400).json({error: "missing id"});
 
   if(!data)
     return res.status(400).json({error: "invalid data"})
 
+  const commentExists = await prisma.commentaire.count({ where: {
+    id: commentaireId
+  } });
 
+  if (commentExists === 0) 
+    return res.status(400).json({ error: "commentaire not found" });
 
 try {
     const commentaireUpdated= await prisma.commentaire.update({
@@ -104,6 +117,12 @@ router.delete("/:id", async (req, res) => {
     return res.status(400).json({ error: "invalid id" });
   }
 
+  const categoryExists = await prisma.article.count({ where: {
+    id: parseInt(commentaireId)
+  } });
+
+  if (categoryExists === 0) 
+    return res.status(400).json({ error: "commentaire not found" });
   try {
       await prisma.commentaire.delete({
         where: { id: parseInt(commentaireId) }

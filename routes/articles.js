@@ -1,5 +1,5 @@
 const express= require("express")
-router= express.Router()
+const router= express.Router()
 const {PrismaClient}= require("@prisma/client")
 const multer  = require('multer');
 const path = require('path');
@@ -23,8 +23,8 @@ const storage = multer.diskStorage({
     return new Promise((resolve, reject) => {
         fs.unlink(imagePath, (err) => {
             if (err) {
-                console.error("Error while deleting image:", err.message);
-                reject(new Error("Error while deleting image"));
+                //i don't want the execution to stop if there is an error while deleting the image
+                resolve("Error while deleting image");
             } else {
                 resolve("Image deleted successfully");
             }
@@ -36,17 +36,29 @@ const storage = multer.diskStorage({
 
 
 router.get("/:take/:skip", async(req,res)=>{
+    
     const take = parseInt(req.params.take); 
     const skip = parseInt(req.params.skip);
+    const category = req.query.categorie || null;
 
-    try {
+    let filter = { published: true };
+    if (category) {
+        filter = {
+            categories: {
+                some: {
+                    nom: category
+                }
+            }
+        };
+    }
+
+    // try {
         const articles = await prisma.article.findMany({
             take: take,
             skip: skip,
             select: {
                 id: true,
                 titre: true,
-                contenu: true,
                 image: true,
                 categories: {
                     select: {nom: true}
@@ -55,39 +67,45 @@ router.get("/:take/:skip", async(req,res)=>{
                     select: {nom: true}
                 }
             },
-            where: {published: true},
+            where: filter,
         });
 
         if(articles.length === 0)
-            return(res.status(404).json({error: "there are no published articles"}))
+            return(res.status(404).json({error: "there are no published articles here"}))
+
+        const totalArticles = await prisma.article.count({ where: filter });
 
         const transformedArticles = articles.map(article => ({
             ...article,
-            categories: article.categories.map(category => category.nom)
+            categories: article.categories.map(category => category.nom) //categories
         }));
 
-        res.status(200).json(transformedArticles);
-    } catch (error) {
-        console.error("Error fetching items:", error.message);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(200).json({
+            articles: transformedArticles,
+            currentPage: Math.ceil(skip / 10)+1,
+            totalPages: Math.ceil(totalArticles / 10),
+            currentCategory: category,
+        });
     }
-})
-
-
-
+    //  catch (error) {
+    //     console.error("Error fetching items:", error.message);
+    //     res.status(500).json({ error: "Internal server error" });
+    // }
+// }
+)
 
 router.get("/:id", async (req,res)=>{
     const id = req.params.id;
-    if (!id) return res.status(400).json({ error: "Missing id" });
+    if (!id)    return res.status(400).json({ error: "Missing id" });
+    if (isNaN(id))    return res.status(400).json({ error: "invalid id" });
 
-    try {
         const article = await prisma.article.findUnique({
-            where: { id: Number(id) },
+            where: { id: parseInt(id) },
             select: {
                 id: true,
                 titre: true,
                 contenu: true,
-                published: true,
+                // published: true,
                 image: true,
                 categories: {
                     select: {
@@ -115,25 +133,35 @@ router.get("/:id", async (req,res)=>{
         if (!article) 
             return res.status(404).json({ error: "Article not found" });
 
-        res.status(200).json(article);
-    } catch (error) {
-        console.error("Error fetching item:", error.message);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(200).json({message: "success", article:article});
     }
-    
+)
 
-})
+
 router.post("/", upload.single('image'),async (req,res)=>{
 
-    try {
-        const { titre, contenu, userId } = req.body;
-        if (!titre || !contenu || !userId)
-            return res.status(400).json({ error: 'Missing required fields (titre, contenu, userId)' });
+    const { titre, contenu, userId } = req.body;
+    if (!titre || !contenu || !userId)
+        return res.status(400).json({ error: 'Missing required fields (titre, contenu, userId)' });
 
+    const user= await prisma.utilisateur.findUnique({
+            where: {
+                id: parseInt(userId)
+            },
+            select: {
+                role: true
+            }
+        })
+        
+        if(!user)
+            return res.status(400).json({ error: 'Invalid user' });
+        if(user.role !== "AUTHOR")
+            return res.status(400).json({ error: 'Only authors can create articles' });
+        
         const imageUrl = req.file ? `images/${req.file.filename}` : null;
         const published = req.body.published === true ? true : false;
         const categories = req.body.categories ? req.body.categories : [];
-
+        
         if(categories.length !== 0){
             const categoriesExist = await prisma.categorie.findMany({
                 where: {
@@ -144,7 +172,8 @@ router.post("/", upload.single('image'),async (req,res)=>{
                 return res.status(400).json({ error: 'Invalid categories' });
         }
         
-
+        
+    try {
         const article = await prisma.article.create({
             data: {
                 titre,
@@ -153,7 +182,7 @@ router.post("/", upload.single('image'),async (req,res)=>{
                 userId: parseInt(userId),
                 image: imageUrl,
                 categories: {
-                    connect: categories.map(category => ({ id: Number(category) }))
+                    connect: categories.map(category => ({ id: parseInt(category) }))
                 }
             }
         });
@@ -169,13 +198,13 @@ router.post("/", upload.single('image'),async (req,res)=>{
 router.patch("/", upload.single('image'), async (req, res) => {
 
     const data = req.body;
-    data.id = parseInt(data.id, 10);
+    data.id = parseInt(data.id);
 
     if (!data.id) 
         return res.status(400).send("Missing id");
-    
 
-    try {
+    
+    
         const originalArticle = await prisma.article.findUnique({
             where: { id: data.id },
             select: { image: true, categories: { select: { id: true } } }
@@ -185,17 +214,10 @@ router.patch("/", upload.single('image'), async (req, res) => {
             return res.status(404).send("Article not found");
         
 
-        if (req.file) {
-            var newImageUrl;
-            if (originalArticle.image) {
-                await deleteImage(`public/${originalArticle.image}`);
-            }
-            newImageUrl = `images/${req.file.filename}`;
-        }
+        
 
         const categoryIds = data.categories ? data.categories.map(id => ({ id: parseInt(id, 10) })) : [];
 
-        console.log(categoryIds)
         if(categoryIds.length !== 0){
             const categoriesExist = await prisma.categorie.findMany({
                 where: {
@@ -207,7 +229,15 @@ router.patch("/", upload.single('image'), async (req, res) => {
         }
 
         
+        try {
 
+            if (req.file) {
+                var newImageUrl;
+                if (originalArticle.image)
+                    await deleteImage(`public/${originalArticle.image}`);
+
+                newImageUrl = `images/${req.file.filename}`;
+            }
         const updatedArticle = await prisma.$transaction(async (prisma) => {
             const article = await prisma.article.update({
                 where: { id: data.id },
@@ -227,7 +257,6 @@ router.patch("/", upload.single('image'), async (req, res) => {
                     }
                 }
             });
-
             return article;
         });
 
@@ -242,10 +271,12 @@ router.patch("/", upload.single('image'), async (req, res) => {
 router.delete("/:id", async (req, res) => {
     const id = req.params.id;
     if (!id) return res.status(400).json({ error: "Missing id" });
+    if (isNaN(id))    return res.status(400).json({ error: "invalid id" });
 
-    try {
+
+    
         const article = await prisma.article.findUnique({
-            where: { id: Number(id) },
+            where: { id: parseInt(id) },
             select: { image: true },
         });
 
@@ -253,7 +284,7 @@ router.delete("/:id", async (req, res) => {
             return res.status(404).json({ error: "Article not found" });
         
 
-        
+    try {        
         await prisma.$transaction(async (prisma) => {
             if (article.image) {
                 const imagePath = path.join(__dirname, "..", "public", article.image);
@@ -261,11 +292,11 @@ router.delete("/:id", async (req, res) => {
             }
             
             await prisma.commentaire.deleteMany({
-                where: { articleId: parseInt(id, 10) }
+                where: { articleId: parseInt(id) }
             });
 
             await prisma.article.delete({
-                where: { id: parseInt(id, 10) }
+                where: { id: parseInt(id) }
             });
         });
 
@@ -277,3 +308,5 @@ router.delete("/:id", async (req, res) => {
 });
 
 module.exports = router;
+
+
