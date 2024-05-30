@@ -3,7 +3,8 @@ const router= express.Router()
 const {PrismaClient}= require("@prisma/client")
 const multer  = require('multer');
 const path = require('path');
-const fs= require("fs")
+const fs= require("fs");
+const { render } = require("ejs");
 
 const prisma= new PrismaClient()
 
@@ -32,72 +33,103 @@ const storage = multer.diskStorage({
     });
 };
 
-  
-
-
-router.get("/:take/:skip", async(req,res)=>{
-    
-    const take = parseInt(req.params.take); 
+router.get('/:take/:skip', async (req, res) => {
+    const take = parseInt(req.params.take);
     const skip = parseInt(req.params.skip);
     const category = req.query.categorie || null;
+
+    if (isNaN(take) || isNaN(skip) || take<0 || skip<0) {
+        res.render("error", { message: "Invalid page parameters", status: 400 });
+        return
+    }
+    
 
     let filter = { published: true };
     if (category) {
         filter = {
+            ...filter,
             categories: {
                 some: {
-                    nom: category
-                }
-            }
+                    nom: category,
+                },
+            },
         };
     }
 
-    // try {
-        const articles = await prisma.article.findMany({
-            take: take,
-            skip: skip,
-            select: {
-                id: true,
-                titre: true,
-                image: true,
-                categories: {
-                    select: {nom: true}
+    try {
+        const [articles, totalArticles, categories] = await Promise.all([
+            prisma.article.findMany({
+                take: take,
+                skip: skip,
+                select: {
+                    id: true,
+                    titre: true,
+                    image: true,
+                    createdAt: true,
+                    categories: {
+                        select: { nom: true },
+                    },
+                    auteur: {
+                        select: { nom: true },
+                    },
                 },
-                auteur: {
-                    select: {nom: true}
-                }
-            },
-            where: filter,
-        });
+                where: filter,
+            }),
+            prisma.article.count({ where: filter }),
+            prisma.categorie.findMany({
+                include: {
+                    _count: {
+                        select: { articles: true },
+                    },
+                },
+            }),
+        ]);
 
-        if(articles.length === 0)
-            return(res.status(404).json({error: "there are no published articles here"}))
-
-        const totalArticles = await prisma.article.count({ where: filter });
+        if (articles.length === 0) {
+            res.render("error", { message: "There are no published articles here" , status: 404});
+            return
+        }
 
         const transformedArticles = articles.map(article => ({
             ...article,
-            categories: article.categories.map(category => category.nom) //categories
+            categories: article.categories.map(category => category.nom),
         }));
 
-        res.status(200).json({
+        const categoriesWithCount = categories.map(category => ({
+            id: category.id,
+            nom: category.nom,
+            articleCount: category._count.articles,
+        }));
+
+
+        res.render('index', {
             articles: transformedArticles,
-            currentPage: Math.ceil(skip / 10)+1,
-            totalPages: Math.ceil(totalArticles / 10),
+            categories: categoriesWithCount,
+            currentPage: Math.ceil(skip / take) + 1,
+            totalPages: Math.ceil(totalArticles / take),
             currentCategory: category,
-        });
+        })
+
+        
+    } catch (error) {
+        res.render("error", { message: "error while fetching data" , status: 500});
+        // res.status(500).json({ error: 'error  while fetching data' });
     }
-    //  catch (error) {
-    //     console.error("Error fetching items:", error.message);
-    //     res.status(500).json({ error: "Internal server error" });
-    // }
-// }
-)
+});
+
 
 router.get("/:id", async (req,res)=>{
     const id = req.params.id;
-    if (!id)    return res.status(400).json({ error: "Missing id" });
-    if (isNaN(id))    return res.status(400).json({ error: "invalid id" });
+    if (!id)    {
+        // return res.status(400).json({ error: "Missing id" });
+        res.render('error', {message: "Missing id", status: 400});
+        return
+    }
+    if (isNaN(id)){
+        // return res.status(400).json({ error: "invalid id" });
+        res.render('error', {message: "invalid id", status: 400});
+        return 
+    }
 
         const article = await prisma.article.findUnique({
             where: { id: parseInt(id) },
@@ -131,12 +163,10 @@ router.get("/:id", async (req,res)=>{
         });
 
         if (!article) 
-            return res.status(404).json({ error: "Article not found" });
+            res.render('error', {message: "article not found", status: 404});
 
-        res.status(200).json({message: "success", article:article});
-    }
-)
-
+        res.render('article', {article})
+})
 
 router.post("/", upload.single('image'),async (req,res)=>{
 
@@ -308,5 +338,3 @@ router.delete("/:id", async (req, res) => {
 });
 
 module.exports = router;
-
-

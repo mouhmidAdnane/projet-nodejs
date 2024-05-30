@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/stylesheets/article.css">
+    <title>Article</title>
+</head>
+
+
+<body>
+
+    <div class="container">
+        <main class="article-container">
+            <article>
+                <%if(article.image){%>
+                <div class="imageContainer">
+                    <img src="<%= article.image ? "/"+article.image : "/images/default.jpg" %>">
+                </div>
+                <%}%>
+                <h1 class="article-title"><%=article.titre%></h1>
+                <div class="article-meta">
+                    <span class="author">By: <%=article.auteur.nom%></span>
+                    <span class="date">Date: </span>
+                    <div class="categories">
+                        <span>Categories:</span>
+                        <ul>
+                            <%article.categories.map((category)=>{%>
+                                <li class="category" onclick="goToCategory('<%=category.nom%>')"><%=category.nom%></li>
+                            <%})%>
+                        </ul>
+                    </div>
+                </div>
+                <div class="article-content">
+                    <p><%=article.contenu%></p>
+                </div>
+            </article>
+            <section class="comments-section">
+                <h2>Comments</h2>
+                <%article.commentaires.map((comment)=>{%>
+                    <div class="comment">
+                        <div><img src="/images/avatar/user.png" alt="">
+                            <h3><%=comment.email%></h3>
+                        </div>
+                        <%=comment.contenu%>
+                    </div>
+                <%})%>
+            </section>
+        </main>
+    </div>
+</body>
+
+    <script>
+
+        const goToCategory= (category)=>{
+            window.location.href = `http://localhost:3000/articles/10/0?categorie=${category}`
+        }
+    </script>
+</html>

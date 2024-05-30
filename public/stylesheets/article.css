@@ -1,0 +1,115 @@
+@import url('https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100..900;1,100..900&display=swap');
+
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Raleway', sans-serif;
+    line-height: 1.6;
+    background-color: #f4f4f4;
+    color: #333;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+.article-container {
+    margin-bottom: 40px;
+}
+
+.imageContainer img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.article-title {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+}
+
+.article-meta {
+    font-size: 0.9em;
+    color: #777;
+    margin-bottom: 20px;
+}
+
+.author {
+    margin-right: 10px;
+}
+
+.date {
+    margin-right: 10px;
+}
+
+.categories {
+    margin-top: 10px;
+}
+
+.categories ul {
+    list-style: none;
+    padding: 0;
+}
+
+.category {
+    display: inline-block;
+    background: #007BFF;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 50px;
+    margin-right: 5px;
+    cursor: pointer;
+}
+
+.article-content p {
+    margin-bottom: 20px;
+}
+
+.comments-section {
+    margin-top: 40px;
+}
+
+.comments-section h2 {
+    margin-bottom: 20px;
+    font-size: 1.5em;
+    border-bottom: 1px solid #555 ;
+    padding-bottom: 5px;
+}
+
+.comment {
+    margin-bottom: 20px;
+}
+
+.comment>div{
+    display: flex;
+    align-items: center;
+}
+
+
+.comment>div>img{
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.comment p {
+    font-size: 1em;
+    line-height: 1.4;
+    background: #f9f9f9;
+    padding: 10px;
+    border-radius: 5px;
+}
+
